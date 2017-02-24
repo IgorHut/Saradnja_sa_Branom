@@ -18,15 +18,21 @@ library(AppliedPredictiveModeling)
 library(stringr)
 library(pROC)
 
-setwd("~/Documents/GitHub/Saradnja_sa_Branom")
+
+#BRANIN DATA SET#
+#################
+setwd("~/GitHub/Saradnja_sa_Branom")
 
 init_data <- read_excel("Obojene_krkrop_II150_III_IV_V150.xlsx")
 
-init_data# Checking the tbl
-
+# Checking the df
 str(init_data)
+View(init_data)
 
-use_data <- init_data[-c(1, 3)] # These columns are not needed for initial analysis
+# Let's get rid of the columns which are not needed for initial analysis
+use_data <- init_data[-c(1, 3)] 
+
+View(use_data)
 
 head(use_data)
 
@@ -45,9 +51,11 @@ colnames(use_data)[1] <- "Group"
 # Renaming the rest of the columns that hold the relative wavelengths
 for (i in 2:ncol(use_data)) {
   
-  colnames(use_data)[i] <- paste("wave_diff", as.character(i - 1))
+  colnames(use_data)[i] <- paste("wave_diff=", colnames(use_data)[i])
   
 }
+
+head(colnames(use_data))
 
 # Let's check if there are any NAs
 sum(is.na(use_data) == TRUE)
@@ -73,8 +81,26 @@ levels(data_bin$Group) <- sub("5", "C", levels(data_bin$Group))
 
 levels(data_bin$Group)
 
+View(data_bin)
+
 #Let's see what is the proportion of healthy (NC) vs those with some pre-cancer condition or cancer (C)
 prop.table(table(data_bin$Group))
+
+
+# Puting in new varables that will serve as potential features for classification 
+
+# as.matrix has to be used to transform df to matrix for matrixStats functions
+
+data_bin <- data_bin %>% mutate(Mean = rowMeans(data_bin[2:length(data_bin)]), 
+                                   Median = rowMedians(as.matrix(data_bin[2:length(data_bin)])),
+                                   Sd = rowSds(as.matrix(data_bin[2:length(data_bin)])), 
+                                   Max = rowMaxs(as.matrix(data_bin[2:length(data_bin)])),
+                                   Min = rowMins(as.matrix(data_bin[2:length(data_bin)]))) 
+
+data_bin <- tbl_df(data_bin)
+
+head(colnames(data_bin))
+tail(colnames(data_bin))
 
 
 # Preprocessing & Training #
@@ -95,7 +121,7 @@ myControl <- trainControl(
 getModelInfo()$glmnet$type
 
 # Fit glmnet model: model; preprocessing with standardization and removing nzv
-model <- train(
+model_glmnet1 <- train(
   Group ~., data = data_bin,
   method = "glmnet",
   trControl = myControl,
@@ -103,25 +129,25 @@ model <- train(
 )
 
 # Print model to console
-model
+model_glmnet1
 
 # Print maximum ROC statistic
-max(model[["results"]]$ROC) # max ROC = 0.7556316
+max(model_glmnet1[["results"]]$ROC) # max ROC = 0.7556316
 
 # Model summary
-summary(model)
+summary(model_glmnet1)
 
 # Plot the model
-plot(model)
+plot(model_glmnet1)
 
 # find out variable importance
-varImp(model)
-plot(varImp(model))
+varImp(model_glmnet1)
+plot(varImp(model_glmnet1))
 
 # Probing with "glmnet" and pca
 
 # Fit glmnet model: model; preprocessing with standardization, nzv and pca
-model <- train(
+model_glmnet2 <- train(
   Group ~., data = data_bin,
   method = "glmnet",
   trControl = myControl,
@@ -129,18 +155,18 @@ model <- train(
 )
 
 # Print model to console
-model
+model_glmnet2
 
 # Print maximum ROC statistic
-max(model[["results"]]$ROC) # max ROC = 0.754
+max(model_glmnet2[["results"]]$ROC) # max ROC = 0.754
 
 # Plot the model
-plot(model)
+plot(model_glmnet2)
 
 # Probing with "gbm"
 
 # Fit "gbm" model; preprocessing with standardization and removing nzv
-model <- train(
+model_gbm1 <- train(
   Group ~., data = data_bin,
   method = "gbm",
   trControl = myControl,
@@ -148,21 +174,21 @@ model <- train(
 )
 
 # Print model to console
-model
+model_gbm1
 
 # Print maximum ROC statistic
-max(model[["results"]]$ROC) # max ROC = 0.7556316
+max(model_gbm1[["results"]]$ROC) # max ROC = 0.7556316
 
 # Model summary
-summary(model, cBars = 20, las = 1)[1:50,]
+summary(model_gbm1, cBars = 20, las = 1)[1:50,]
 
 # Plot the model
-plot(model)
+plot(model_gbm1)
 
-# Just probing with glmnet and pca
+# Just probing with gbm and pca
 
-# Fit gbm" model; preprocessing with standardization, zv and pca
-model <- train(
+# Fit "gbm" model; preprocessing with standardization, zv and pca
+model_gbm2 <- train(
   Group ~., data = data_bin,
   method = "gbm",
   trControl = myControl,
@@ -170,11 +196,15 @@ model <- train(
 )
 
 # Print model to console
-model
+model_gbm2
 
 # Print maximum ROC statistic
-max(model[["results"]]$ROC) # max ROC = 0.754
+max(model_gbm2[["results"]]$ROC) # max ROC = 0.754
 
 # Plot the model
-plot(model)
+plot(model_gbm2)
+
+# Let's try "random forest"
+
+
 
